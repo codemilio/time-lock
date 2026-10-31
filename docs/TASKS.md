@@ -86,8 +86,8 @@
 - [x] Serializar erros em camelCase e com mensagens seguras em PT-BR.
 - [x] Implementar `AppState`, `Session` e `RateLimiter` conforme a Seção 4.3.
 - [x] Garantir que `master_key` seja `None` enquanto bloqueado.
-- [ ] Preparar a árvore de módulos prevista na Seção 4.6.
-- [ ] Remover `health_check` quando os comandos reais forem registrados.
+- [x] Preparar a árvore de módulos prevista na Seção 4.6.
+- [x] Remover `health_check` quando os comandos reais forem registrados.
 
 **Testes:**
 
