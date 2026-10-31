@@ -23,3 +23,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 - Use queries preparadas; nunca interpole SQL.
 - Segredos em memória usam `zeroize`.
 - Antes de concluir uma tarefa, rode os gates de qualidade da Seção 11.5 do `docs/spec.md`.
+
+## Regras de Git para o Agente
+
+- **Nunca acumule tasks:** Ao concluir cada sub-item do `tasks.md`, faça imediatamente o `git add` dos arquivos tocados e realize um commit atômico.
+- Nomes de commits devem seguir Conventional Commits (ex: `feat: ...`, `fix: ...`).
+- Marque a task como concluída no `tasks.md` no mesmo commit ou logo em seguida.
