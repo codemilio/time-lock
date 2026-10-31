@@ -43,7 +43,7 @@ Usuário único (single-user), pessoal. Não há cadastro ou conta externa. O pr
 - **US-07** — Como usuário, quero poder deletar uma cápsula selada se desistir dela, com confirmação da ação.
 
 ### 4.4 Revelação
-- **US-08** — Como usuário, quero receber uma notificação local quando chegar a data de uma cápsula, mesmo que o app esteja fechado.
+- **US-08** — Como usuário, quero receber uma notificação local quando chegar a data de uma cápsula enquanto o app estiver aberto, ou na próxima abertura.
 - **US-09** — Como usuário, quero ler o conteúdo de uma cápsula revelada na seção "Reveladas".
 - **US-10** — Como usuário, quero poder reler uma cápsula revelada quantas vezes quiser.
 
@@ -61,7 +61,7 @@ Usuário único (single-user), pessoal. Não há cadastro ou conta externa. O pr
 | ID | Requisito |
 |---|---|
 | RF-01 | No primeiro uso, o app exibe uma tela de setup para criação da senha mestra. |
-| RF-02 | A senha mestra nunca é armazenada em texto claro. Deve ser derivada via **Argon2id** e somente o hash é persistido. |
+| RF-02 | A senha mestra nunca é armazenada. A chave mestra (Master Key) é derivada via **Argon2id** e validada por um **key-check** AES-256-GCM; nenhum hash da senha é persistido. |
 | RF-03 | Nas aberturas seguintes, o app exibe a tela de login. Tentativas incorretas incrementam um delay progressivo (ex.: 1s, 2s, 4s...). |
 | RF-04 | Não há recuperação de senha. Se o usuário esquecer a senha mestra, os dados são irrecuperáveis (comportamento documentado na UI). |
 
@@ -69,7 +69,7 @@ Usuário único (single-user), pessoal. Não há cadastro ou conta externa. O pr
 
 | ID | Requisito |
 |---|---|
-| RF-05 | O formulário de criação exige: título opcional (máx. 80 chars), corpo da mensagem (obrigatório, sem limite definido), data de revelação (obrigatório, deve ser data futura). |
+| RF-05 | O formulário de criação exige: título opcional (máx. 80 chars), corpo da mensagem (obrigatório, entre 1 byte e 1.048.576 bytes UTF-8), data de revelação (obrigatório, deve ser data futura). |
 | RF-06 | Ao salvar, o backend (Rust/Tauri) gera uma **Content Key** aleatória de 256 bits. |
 | RF-07 | O conteúdo é cifrado com a Content Key usando **AES-256-GCM**. |
 | RF-08 | A Content Key é cifrada com a **Master Key** (derivada da senha mestra via Argon2id). |
@@ -99,8 +99,8 @@ Usuário único (single-user), pessoal. Não há cadastro ou conta externa. O pr
 | ID | Requisito |
 |---|---|
 | RF-19 | Ao detectar novas cápsulas reveladas (RF-15), o app dispara uma notificação local do sistema operacional. |
-| RF-20 | Formato da notificação: título "📬 Cápsula do Tempo" e corpo "Você tem X cápsula(s) pronta(s) para abrir!". |
-| RF-21 | Se o app estiver fechado, a notificação é disparada na próxima abertura. *(Notificação em background nativo está fora do MVP — ver Seção 9.)* |
+| RF-20 | Formato da notificação: título "📬 Cápsula do Tempo" e corpo "Você tem 1 cápsula pronta para abrir!" ou "Você tem N cápsulas prontas para abrir!". |
+| RF-21 | Se o app estiver fechado, a notificação é disparada na próxima abertura. *(Notificação em background nativo está fora do MVP — ver Seção 12.)* |
 
 ### 5.6 Arquivamento
 
@@ -205,9 +205,13 @@ Master Key (256 bits) — só em memória durante a sessão
 | `value` | TEXT | Valor armazenado |
 
 Entradas esperadas:
-- `master_password_hash` — hash Argon2id da senha mestra
-- `argon2_salt` — salt único por instalação
 - `setup_completed` — flag booleano
+- `kdf_version` — versão do algoritmo de derivação
+- `argon2_salt_b64` — salt único por instalação (Base64)
+- `argon2_m_kib`, `argon2_t`, `argon2_p` — parâmetros do Argon2id
+- `crypto_format_version` — versão do formato criptográfico
+- `key_check_b64` — ciphertext + tag do key-check (Base64)
+- `key_check_iv_b64` — IV do key-check (Base64)
 
 ---
 
@@ -219,7 +223,8 @@ Entradas esperadas:
 Abrir app → Tela de Setup
 → Usuário define senha mestra
 → Sistema gera salt único
-→ Argon2id(senha + salt) → Master Key Hash armazenado
+→ Argon2id(senha + salt) → Master Key (apenas memória)
+→ Gera key-check AES-256-GCM e persiste salt, parâmetros e key-check
 → Redireciona para Home (vazia)
 ```
 
@@ -228,7 +233,8 @@ Abrir app → Tela de Setup
 ```
 Abrir app → Tela de Login
 → Usuário digita senha
-→ Argon2id(senha + salt armazenado) → compara hash
+→ Argon2id(senha + salt armazenado) → Master Key
+→ Valida key-check com AES-256-GCM
 → [OK] → Master Key em memória → Home
 → [FALHA] → Delay progressivo + mensagem de erro
 ```
@@ -251,10 +257,11 @@ Home → "Nova Cápsula"
 ### Fluxo 4 — Revelação
 
 ```
-Abrir app → Login → Backend verifica:
+Abrir app → Login → Backend verifica imediatamente:
    SELECT * FROM capsules WHERE status='sealed' AND reveal_date <= now()
 → UPDATE status='revealed', revealed_at=now()
-→ Se houver atualizações → dispara notificação local
+→ Se houver atualizações → dispara notificação local e evento
+→ Enquanto o app estiver aberto, repete a verificação a cada 60 s
 → Home exibe badge na seção "Reveladas"
 ```
 
