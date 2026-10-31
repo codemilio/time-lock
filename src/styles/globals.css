@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Inter", system-ui, -apple-system, "Segoe UI Variable", sans-serif;
+
+  --color-canvas: #070b14;
+  --color-surface: #0e1626;
+  --color-surface-raised: #162033;
+  --color-border-subtle: #223049;
+  --color-border-strong: #4f6284;
+  --color-ink: #e6edf7;
+  --color-ink-muted: #93a4bd;
+  --color-accent: #f0b45a;
+  --color-accent-strong: #f7cf8a;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
